@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { runWorkflowExecution, type ExecutionEvent } from "@/lib/executionEngine";
 import { nodeArraySchema, edgeArraySchema } from "@/lib/schemas";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 
 export const maxDuration = 300;
 
@@ -96,19 +97,16 @@ export async function POST(request: NextRequest) {
         select: { id: true },
       });
       persistedWorkflowId = existingWorkflow?.id ?? null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown DB error";
-      return NextResponse.json(
-        { error: "Database check failed before run creation", detail: message },
-        { status: 500 }
-      );
+    } catch {
+      // Non-fatal: continue execution without attaching persisted workflow ID
+      persistedWorkflowId = null;
     }
   }
 
   // Create WorkflowRun record
-  let workflowRun;
+  let workflowRunId: string;
   try {
-    workflowRun = await prisma.workflowRun.create({
+    const workflowRun = await prisma.workflowRun.create({
       data: {
         workflowId: persistedWorkflowId,
         userId,
@@ -119,15 +117,12 @@ export async function POST(request: NextRequest) {
         nodeIds: requestedNodeIds ?? [],
       },
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown DB error";
-    return NextResponse.json(
-      { error: "Failed to create workflow run", detail: message },
-      { status: 500 }
-    );
+    workflowRunId = workflowRun.id;
+  } catch {
+    // If DB is unavailable/misconfigured, still allow execution to proceed.
+    // Node/run persistence will be skipped by downstream non-fatal DB writes.
+    workflowRunId = `ephemeral_${randomUUID()}`;
   }
-
-  const workflowRunId = workflowRun.id;
 
   // SSE stream
   const encoder = new TextEncoder();

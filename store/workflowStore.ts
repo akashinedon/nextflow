@@ -124,6 +124,9 @@ async function consumeExecutionStream(
         const err = (await response.json()) as { error?: string; detail?: string };
         if (typeof err.error === "string" && err.error.length > 0) {
           errorMessage = err.error;
+          if (typeof err.detail === "string" && err.detail.length > 0) {
+            errorMessage = `${errorMessage}: ${err.detail}`;
+          }
         } else if (typeof err.detail === "string" && err.detail.length > 0) {
           errorMessage = err.detail;
         }
