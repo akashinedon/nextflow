@@ -119,8 +119,25 @@ async function consumeExecutionStream(
     });
 
     if (!response.ok) {
-      const err = (await response.json()) as { error?: string };
-      get().showToast("error", err.error ?? "Failed to start workflow");
+      let errorMessage = `Failed to start workflow (HTTP ${response.status})`;
+      try {
+        const err = (await response.json()) as { error?: string; detail?: string };
+        if (typeof err.error === "string" && err.error.length > 0) {
+          errorMessage = err.error;
+        } else if (typeof err.detail === "string" && err.detail.length > 0) {
+          errorMessage = err.detail;
+        }
+      } catch {
+        try {
+          const text = await response.text();
+          if (text.trim().length > 0) {
+            errorMessage = `${errorMessage}: ${text.slice(0, 160)}`;
+          }
+        } catch {
+          // Ignore secondary parse errors
+        }
+      }
+      get().showToast("error", errorMessage);
       set({ isRunning: false });
       return;
     }
