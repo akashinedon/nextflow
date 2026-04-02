@@ -18,20 +18,31 @@ export default function SignUpPage() {
           appearance={{
             variables: {
               colorBackground: "#12121c",
-              colorInputBackground: "#17172a",
-              colorInputText: "#f1f5f9",
-              colorText: "#f1f5f9",
-              colorTextSecondary: "#94a3b8",
+              colorInputBackground: "#161a2b",
+              colorInputText: "#f8fafc",
+              colorText: "#e8ecf8",
+              colorTextSecondary: "#b0b8d0",
               colorPrimary: "#7c3aed",
               colorDanger: "#ef4444",
               borderRadius: "12px",
             },
             elements: {
-              card: "shadow-2xl shadow-black/60 border border-[#2a2a40]",
+              card: "shadow-2xl shadow-black/60 border border-[#3a4060] bg-[#0f1324]/95",
               headerTitle: "text-white font-semibold",
-              socialButtonsIconButton: "border-[#2a2a40] bg-[#17172a] hover:bg-[#1e1e30]",
-              dividerLine: "bg-[#2a2a40]",
-              formFieldInput: "border-[#2a2a40]",
+              headerSubtitle: "text-slate-300",
+              socialButtonsBlockButton: "border-[#3a4060] bg-[#161a2b] hover:bg-[#1f243a]",
+              socialButtonsBlockButtonText: "text-slate-100",
+              socialButtonsIconButton: "border-[#3a4060] bg-[#161a2b] hover:bg-[#1f243a]",
+              dividerLine: "bg-[#3a4060]",
+              dividerText: "text-slate-400",
+              formFieldLabel: "text-slate-200",
+              formFieldInput:
+                "border-[#3a4060] bg-[#161a2b] text-slate-100 placeholder:text-slate-400",
+              formButtonPrimary:
+                "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-95",
+              footerActionText: "text-slate-300",
+              footerActionLink: "text-violet-300 hover:text-violet-200",
+              identityPreviewText: "text-slate-200",
             },
           }}
         />
