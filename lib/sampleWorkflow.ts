@@ -179,7 +179,7 @@ export const SAMPLE_EDGES: WorkflowEdge[] = [
   // Branch A: CropImage → LLM #1 (images)
   makeEdge(
     "e-crop-llm1-img",
-    IDS.cropImage, "output-image_url",
+    IDS.cropImage, "output-output",
     IDS.llm1, "input-images",
     "image"
   ),
@@ -227,7 +227,7 @@ export const SAMPLE_EDGES: WorkflowEdge[] = [
   // Convergence: CropImage → LLM #2 (image input)
   makeEdge(
     "e-crop-llm2-img",
-    IDS.cropImage, "output-image_url",
+    IDS.cropImage, "output-output",
     IDS.llm2, "input-images",
     "image"
   ),
@@ -235,7 +235,7 @@ export const SAMPLE_EDGES: WorkflowEdge[] = [
   // Convergence: ExtractFrame → LLM #2 (image input)
   makeEdge(
     "e-extract-llm2-img",
-    IDS.extractFrame, "output-image_url",
+    IDS.extractFrame, "output-output",
     IDS.llm2, "input-images",
     "image"
   ),

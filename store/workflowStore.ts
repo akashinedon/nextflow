@@ -356,6 +356,32 @@ export const useWorkflowStore = create<WorkflowState>()(
           get().showToast("info", "Add some nodes to run the workflow");
           return;
         }
+
+        // Prevent predictable runtime failures by validating required uploads first.
+        const missingImageUpload = nodes.find((n) => {
+          if (n.type !== "uploadImageNode") return false;
+          const isConnected = edges.some((e) => e.source === n.id);
+          if (!isConnected) return false;
+          const data = n.data as { imageUrl?: string | null };
+          return !data.imageUrl;
+        });
+        if (missingImageUpload) {
+          get().showToast("error", "Upload an image before running the workflow");
+          return;
+        }
+
+        const missingVideoUpload = nodes.find((n) => {
+          if (n.type !== "uploadVideoNode") return false;
+          const isConnected = edges.some((e) => e.source === n.id);
+          if (!isConnected) return false;
+          const data = n.data as { videoUrl?: string | null };
+          return !data.videoUrl;
+        });
+        if (missingVideoUpload) {
+          get().showToast("error", "Upload a video before running the workflow");
+          return;
+        }
+
         set({ isRunning: true });
         get().clearExecutionStates();
         await consumeExecutionStream(
