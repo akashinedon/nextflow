@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/execute/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/llm/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/workflows/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/workflows/[id]/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/runs/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/runs/[id]/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"]
+}
