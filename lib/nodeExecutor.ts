@@ -9,6 +9,7 @@ import type { HandleRoute } from "@/lib/dag";
 import type { LLMTaskPayload, LLMTaskOutput } from "@/trigger/llmTask";
 import type { CropImagePayload, CropImageOutput } from "@/trigger/cropImageTask";
 import type { ExtractFramePayload, ExtractFrameOutput } from "@/trigger/extractFrameTask";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /** Resolved handle outputs from all previously executed nodes */
 export type NodeOutputsMap = Map<string, Record<string, unknown>>;
@@ -114,6 +115,47 @@ async function triggerTask<TPayload extends object, TOutput>(
 }
 
 /**
+ * Direct Gemini fallback when Trigger.dev task invocation is unavailable.
+ */
+async function runLlmDirect(payload: LLMTaskPayload): Promise<LLMTaskOutput> {
+  const apiKey = process.env["GEMINI_API_KEY"];
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured for direct LLM fallback");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: payload.model });
+
+  type Part = { text: string } | { inlineData: { data: string; mimeType: string } };
+  const parts: Part[] = [];
+
+  if (payload.system_prompt) {
+    parts.push({ text: `System: ${payload.system_prompt}\n\n` });
+  }
+
+  if (payload.images && payload.images.length > 0) {
+    for (const imageUrl of payload.images) {
+      try {
+        const response = await fetch(imageUrl, { signal: AbortSignal.timeout(20_000) });
+        if (!response.ok) continue;
+        const mimeType = response.headers.get("content-type") ?? "image/jpeg";
+        if (!mimeType.startsWith("image/")) continue;
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString("base64");
+        parts.push({ inlineData: { data: base64, mimeType } });
+      } catch {
+        // Skip failed image fetches in fallback mode
+      }
+    }
+  }
+
+  parts.push({ text: payload.user_message });
+
+  const result = await model.generateContent(parts);
+  return { output: result.response.text() };
+}
+
+/**
  * Execute a single node, resolving its inputs from upstream outputs.
  * Returns the node's output map (e.g. { "output-text": "Hello world" }).
  * Throws on failure.
@@ -123,8 +165,6 @@ export async function executeNode(
   handleRoutes: Map<string, HandleRoute>,
   nodeOutputs: NodeOutputsMap
 ): Promise<Record<string, unknown>> {
-  const data = node.data as Record<string, unknown>;
-
   console.log(`[executeNode] Starting execution of node: ${node.id} (type: ${node.type})`);
 
   try {
@@ -187,7 +227,13 @@ async function executeNodeInternal(
         images: images.length > 0 ? images : undefined,
       };
 
-      const output = await triggerTask<LLMTaskPayload, LLMTaskOutput>("run-llm", payload);
+      let output: LLMTaskOutput;
+      try {
+        output = await triggerTask<LLMTaskPayload, LLMTaskOutput>("run-llm", payload);
+      } catch (err) {
+        console.warn("[executeNode] Trigger run-llm failed, using direct Gemini fallback", err);
+        output = await runLlmDirect(payload);
+      }
       return { "output-output": output.output };
     }
 
@@ -204,8 +250,13 @@ async function executeNodeInternal(
         height_percent: Number(resolveInput("input-height_percent", handleRoutes, nodeOutputs, data) ?? data["heightPercent"] ?? 100),
       };
 
-      const output = await triggerTask<CropImagePayload, CropImageOutput>("crop-image", payload);
-      return { "output-output": output.output_url };
+      try {
+        const output = await triggerTask<CropImagePayload, CropImageOutput>("crop-image", payload);
+        return { "output-output": output.output_url };
+      } catch (err) {
+        console.warn("[executeNode] Trigger crop-image failed, using passthrough fallback", err);
+        return { "output-output": String(imageUrl) };
+      }
     }
 
     // ── Extract frame node ──────────────────────────────────────────────────
@@ -222,8 +273,13 @@ async function executeNodeInternal(
         timestamp: String(timestamp),
       };
 
-      const output = await triggerTask<ExtractFramePayload, ExtractFrameOutput>("extract-frame", payload);
-      return { "output-output": output.output_url };
+      try {
+        const output = await triggerTask<ExtractFramePayload, ExtractFrameOutput>("extract-frame", payload);
+        return { "output-output": output.output_url };
+      } catch (err) {
+        console.warn("[executeNode] Trigger extract-frame failed, continuing without frame output", err);
+        return {};
+      }
     }
 
     default: {
