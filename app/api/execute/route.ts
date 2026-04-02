@@ -86,18 +86,46 @@ export async function POST(request: NextRequest) {
       ? "PARTIAL"
       : "FULL";
 
+  // Only attach workflowId if it exists for this user.
+  // New canvases use client-generated IDs until first save.
+  let persistedWorkflowId: string | null = null;
+  if (workflowId !== "unsaved") {
+    try {
+      const existingWorkflow = await prisma.workflow.findFirst({
+        where: { id: workflowId, userId },
+        select: { id: true },
+      });
+      persistedWorkflowId = existingWorkflow?.id ?? null;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown DB error";
+      return NextResponse.json(
+        { error: "Database check failed before run creation", detail: message },
+        { status: 500 }
+      );
+    }
+  }
+
   // Create WorkflowRun record
-  const workflowRun = await prisma.workflowRun.create({
-    data: {
-      workflowId: workflowId === "unsaved" ? null : workflowId,
-      userId,
-      status: "RUNNING",
-      startedAt: new Date(),
-      nodeCount: nodesToRun.length,
-      scope: scopeLabel as "FULL" | "PARTIAL" | "SINGLE",
-      nodeIds: requestedNodeIds ?? [],
-    },
-  });
+  let workflowRun;
+  try {
+    workflowRun = await prisma.workflowRun.create({
+      data: {
+        workflowId: persistedWorkflowId,
+        userId,
+        status: "RUNNING",
+        startedAt: new Date(),
+        nodeCount: nodesToRun.length,
+        scope: scopeLabel as "FULL" | "PARTIAL" | "SINGLE",
+        nodeIds: requestedNodeIds ?? [],
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown DB error";
+    return NextResponse.json(
+      { error: "Failed to create workflow run", detail: message },
+      { status: 500 }
+    );
+  }
 
   const workflowRunId = workflowRun.id;
 

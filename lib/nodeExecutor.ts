@@ -52,10 +52,15 @@ async function triggerTask<TPayload extends object, TOutput>(
 
   console.log(`[triggerTask] Triggering task: ${taskId}`, payload);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let handle;
+  type TriggerHandle = { id: string };
+  const trigger = tasks.trigger as unknown as (
+    id: string,
+    taskPayload: TPayload
+  ) => Promise<TriggerHandle>;
+
+  let handle: TriggerHandle;
   try {
-    handle = await (tasks.trigger as any)(taskId, payload);
+    handle = await trigger(taskId, payload);
     console.log(`[triggerTask] Task triggered successfully. Run ID: ${handle.id}`);
   } catch (error) {
     console.error(`[triggerTask] Failed to trigger task "${taskId}":`, error);
