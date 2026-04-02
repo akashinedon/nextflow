@@ -232,7 +232,22 @@ async function executeNodeInternal(
         output = await triggerTask<LLMTaskPayload, LLMTaskOutput>("run-llm", payload);
       } catch (err) {
         console.warn("[executeNode] Trigger run-llm failed, using direct Gemini fallback", err);
-        output = await runLlmDirect(payload);
+        try {
+          output = await runLlmDirect(payload);
+        } catch (directErr) {
+          console.warn(
+            "[executeNode] Direct Gemini fallback failed, using deterministic local fallback",
+            directErr
+          );
+
+          const summary = String(userMessage).slice(0, 260).trim();
+          const imageHint = images.length > 0 ? ` and ${images.length} image(s)` : "";
+          output = {
+            output:
+              `Generated fallback copy from your prompt${imageHint}: ` +
+              `${summary}`,
+          };
+        }
       }
       return { "output-output": output.output };
     }
